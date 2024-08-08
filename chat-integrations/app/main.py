@@ -18,7 +18,7 @@ load_dotenv()
 SLACK_BOT_TOKEN = os.getenv('SLACK_BOT_TOKEN')
 SLACK_ENDPOINT = os.getenv('SLACK_ENDPOINT')
 OPENAI_KEY = os.getenv("OPENAI_KEY")
-TYPING_RACE_CHANNEL = os.getenv("TYPING_RACE_CHANNEL", "C07GS4G75R6")
+TYPING_RACE_CHANNEL = os.getenv("TYPING_RACE_CHANNEL")
 
 app = FastAPI()
 
@@ -194,7 +194,6 @@ def end(state: MessagesState):
 
     return last_message
 
-# Define a new graph
 workflow = StateGraph(MessagesState)
 workflow.add_node("agent", call_model)
 workflow.add_node("tools", tool_node)
@@ -208,7 +207,6 @@ def get_response(text: str):
     tool_llm = model.bind_tools(tools)
     response = tool_llm.invoke(prompt)
 
-    # Parse the response
     tool_calls = response.additional_kwargs.get('tool_calls', [])
     if not tool_calls:
         return None, None
