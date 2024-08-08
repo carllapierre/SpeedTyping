@@ -1,0 +1,17 @@
+version: '3.8'
+services:
+  slack-bot:
+    build: ./chat-integrations
+    ports:
+      - "8001:8001"
+    volumes:
+      - ./chat-integrations:/app
+    command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--reload", "--port", "8001"]
+
+  ngrok:
+    image: ngrok/ngrok
+    ports:
+      - "4040:4040"
+    environment:
+      - NGROK_AUTHTOKEN=${NGROK_AUTHTOKEN}
+    command: ["http", "slack-bot:8001"]

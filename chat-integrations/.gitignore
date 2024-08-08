@@ -1,0 +1,4 @@
+
+.env
+app/test-results/
+**/__pycache__/
