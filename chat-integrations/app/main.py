@@ -37,17 +37,20 @@ typing_race_text = ""
 race_start_time = 0
 # In-memory store for processed event IDs
 processed_event_ids = []
+winners = []
 
 @app.post("/newrace")
 async def new_race(command: str = Form(...), text: str = Form(...), user_id: str = Form(...), channel_id: str = Form(...)):
     global typing_race_text
     global race_start_time
+    global winners
 
     if channel_id != TYPING_RACE_CHANNEL:
         return {"status": "ignored"}
 
     typing_race_text = text
     race_start_time = time.time()
+    winners = []
     post_message_to_slack(channel_id, "The race has started! 🟢")
     return "You got it! Starting a new race for the text: " + text
 
@@ -55,13 +58,14 @@ async def new_race(command: str = Form(...), text: str = Form(...), user_id: str
 async def end_race(command: str = Form(...), user_id: str = Form(...), channel_id: str = Form(...)):
     global typing_race_text
     global race_start_time
+    global winners
 
-    print (command, user_id, channel_id)
     if channel_id != TYPING_RACE_CHANNEL:
         return {"status": "ignored"}
 
     typing_race_text = ""
     race_start_time = 0
+    winners = []
     post_message_to_slack(channel_id, "The race has ended! 🔴")
 
     return 'Stopping the race!'
@@ -81,7 +85,7 @@ async def handle_slack_event(request: Request):
     thread_ts = event.get("ts")
     event_id = body.get("event_id")
 
-    print (f"Received event: {channel} - {text} - {user} - {thread_ts} - {event_id}")
+    print(f"Received event: {channel} - {text} - {user} - {thread_ts} - {event_id}")
 
     # Check if the event has already been processed
     if event_id in processed_event_ids:
@@ -103,10 +107,12 @@ async def handle_slack_event(request: Request):
 def process_message(text: str, user: str):
     global typing_race_text
     global race_start_time
-    if not typing_race_text:
-        return ""
+    global winners
 
-    success,response = get_response(text)
+    if not typing_race_text:
+        return False, ""
+
+    success, response = get_response(text)
 
     if success is None:
         return False, "Something went wrong. Please try again."
@@ -116,8 +122,18 @@ def process_message(text: str, user: str):
     else:
         end_time = time.time()
         elapsed_time = end_time - race_start_time
-        typing_race_text = ""
-        return True, f"✅ <@{user}> completed the race in {elapsed_time:.2f} seconds! :olympics: \n{response}"
+        medals = [":first_place_medal:", ":second_place_medal:", ":third_place_medal:"]
+        winners.append((user, elapsed_time, medals[len(winners)]))
+
+        if len(winners) < 3:
+            return True, f"✅ <@{user}> completed the race in {elapsed_time:.2f} seconds! {medals[len(winners)-1]}\n{response}"
+        else:
+            typing_race_text = ""
+            final_message = f"✅ <@{user}> completed the race in {elapsed_time:.2f} seconds! {medals[len(winners)-1]}\n{response}\n\n"
+            final_message += "🏆 The winners are:\n"
+            for winner in winners:
+                final_message += f"{winner[2]} <@{winner[0]}> with a time of {winner[1]:.2f} seconds\n"
+            return True, final_message
 
 def post_message_to_slack(channel: str, text: str, thread_ts: str = None):
     url = f"{SLACK_ENDPOINT}/chat.postMessage"
