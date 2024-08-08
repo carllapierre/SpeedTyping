@@ -63,10 +63,15 @@ async def end_race(command: str = Form(...), user_id: str = Form(...), channel_i
     if channel_id != TYPING_RACE_CHANNEL:
         return {"status": "ignored"}
 
+    final_message = "The race has ended! 🔴\n\n"
+    if winners:
+        final_message += "🏆 The winners are:\n"
+        for winner in winners:
+            final_message += f"{winner[2]} <@{winner[0]}> with a time of {winner[1]:.2f} seconds\n"
+
     typing_race_text = ""
     race_start_time = 0
-    winners = []
-    post_message_to_slack(channel_id, "The race has ended! 🔴")
+    post_message_to_slack(channel_id, final_message)
 
     return 'Stopping the race!'
 
@@ -96,6 +101,10 @@ async def handle_slack_event(request: Request):
     if channel != TYPING_RACE_CHANNEL or user == BOT_USER_ID or text is None or typing_race_text == "":
         return {"status": "ignored"}
     
+    # Check if the user is already a winner
+    if any(winner[0] == user for winner in winners):
+        return {"status": "ignored"}
+
     success, response = process_message(text, user)
     if success:
         thread_ts = None
